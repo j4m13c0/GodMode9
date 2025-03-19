@@ -65,14 +65,11 @@ void NTR_CmdReadData (u32 offset, void* buffer)
     cardParamCommand (NTRCARD_CMD_DATA_READ, offset, ReadDataFlags | NTRCARD_ACTIVATE | NTRCARD_nRESET | NTRCARD_BLK_SIZE(1), (u32*)buffer, 0x200 / 4);
 }
 
-void ioDelay(u32 us);
-void ioDelay2(u32 us);
-
 void NTR_CmdReadCopts (u8* buffer)
 {
     REG_NTRCARDROMCNT=0;
     REG_NTRCARDMCNT=0;
-    ioDelay2(167550);
+    // ioDelay2(167550);
     REG_NTRCARDMCNT=NTRCARD_CR1_ENABLE|NTRCARD_CR1_IRQ;
     REG_NTRCARDROMCNT=NTRCARD_nRESET|NTRCARD_SEC_SEED;
     while(REG_NTRCARDROMCNT&NTRCARD_BUSY) ;
@@ -85,7 +82,7 @@ void NTR_CmdReadCopts (u8* buffer)
     NTR_Cmd9E7D();
     u32 cmd[2] = {0x6D000000, 0x00000000};
     NTR_SendCommand(cmd, 0, 0, NULL);
-    ioDelay2(0x60000);
+    // ioDelay2(0x60000);
     //if(iCheapCard)
     //{
       //this is magic of wood goblins

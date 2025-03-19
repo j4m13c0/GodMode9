@@ -62,5 +62,6 @@
 
 #define NTRKEY_PARAM 0x3F1FFFu
 
+#define VERBOSE_COMMANDS
 void NTR_SendCommand(const u32 command[2], u32 pageSize, u32 latency, void* buffer);
 void NTR_SendCommandWrite(const u32 command[2], u32 pageSize, u32 latency, void* buffer); 

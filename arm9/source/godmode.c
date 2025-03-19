@@ -27,6 +27,13 @@
 #include "pxi.h"
 #include "language.h"
 
+
+// For Testing!
+#include "protocol.h"
+#include "protocol_ntr.h"
+#include "command_ntr.h"
+#include "devcart.h"
+
 #ifndef N_PANES
 #define N_PANES 3
 #endif
@@ -3027,15 +3034,34 @@ u32 GodMode(int entrypoint) {
                     ClearScreenF(true, true, COLOR_STD_BG);
                     break;
                 } else if (user_select == devcart) { // Dev Cart Menu
-                    // Paint9(); // hiding a secret here
-                    // ClearScreenF(true, true, COLOR_STD_BG);
-                    // break;
+                    ClearScreenF(true, true, COLOR_STD_BG);
+                    clearScreenBuffer();
 
-                // break;
-            }
+                    // LUMA CHECK HERE
+                    Cart_Init_Dev();
+                    u32 buff[512];
+                    u32 cmd[2] = {0x00000000, 0x00000000};
+                    NTR_SendCommand(cmd, 512, 0, &buff);
+                    u32 cmd2[2] = {0x90000000, 0x00000000};
+                    NTR_SendCommand(cmd2, 4, 0, &buff);
+        
+                    Debug("Card ID: %08X", NTR_CmdGetCartId());
+
+                    uint8_t buff2[0x200];
+                    Debug("Getting NAND info...");
+                    NTR_Cmd94(buff2);
+                    t_nand nand;
+                    nand.maker_code = buff2[0];
+                    get_pagesize(buff2[3], &nand);
+                    get_blocksize(buff2[3], &nand);
 
 
+                    ShowPrompt(false, "Pause");
 
+                    ClearScreenF(true, true, COLOR_STD_BG);
+                    clearScreenBuffer();
+                    //break;
+                }
             }
 
             if (user_select == poweroff) {

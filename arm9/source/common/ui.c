@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+
 #include "qrcodegen.h"
 #include "vram0.h"
 #include "ui.h"
@@ -21,6 +22,17 @@
 #define FONT_MAX_WIDTH 8
 #define FONT_MAX_HEIGHT 10
 #define PROGRESS_REFRESH_RATE 30 // the progress bar is only allowed to draw to screen every X milliseconds
+
+
+
+// This is for the Debug Print. 
+#define MAX_LINES 20  // Maximum lines on screen
+#define LINE_HEIGHT 12  // Line spacing
+#define MAX_LINE_LENGTH 128
+char textBuffer[MAX_LINES][MAX_LINE_LENGTH];  
+int currentLineCount = 0;  // Tracks the number of stored lines
+
+
 
 typedef struct {
     char chunk_id[4]; // NOT null terminated
@@ -1547,3 +1559,50 @@ int ShowBrightnessConfig(int set_brightness)
     SetScreenBrightness(set_brightness);
     return set_brightness;
 }
+
+
+// Function to add a new line and scroll if needed
+void addLine(const char* newText) {
+    // If max lines are reached, shift all lines up
+    if (currentLineCount >= MAX_LINES) {
+        for (int i = 0; i < MAX_LINES - 1; i++) {
+            strcpy(textBuffer[i], textBuffer[i + 1]);  // Move lines up
+        }
+        strcpy(textBuffer[MAX_LINES - 1], newText);  // Add new text at the bottom
+    } else {
+        // Add new text normally
+        strcpy(textBuffer[currentLineCount], newText);
+        currentLineCount++;
+    }
+
+    // Redraw the screen with the updated text
+    drawScreen();
+}
+
+
+// Function to render all stored lines on the screen
+void drawScreen() {
+    // clrScreen(TOP_SCREEN);  // Clear screen before drawing
+    ClearScreenF(true, true, COLOR_STD_BG);
+    for (int i = 0; i < currentLineCount; i++) {
+        DrawStringF(TOP_SCREEN, 0, i * LINE_HEIGHT, COLOR_STD_FONT, COLOR_STD_BG, "%s", textBuffer[i]);
+    }
+}
+
+
+void clearScreenBuffer() {
+    currentLineCount = 0;
+}
+
+void Debug(const char *format, ...)
+{
+    char tempstr[128] = { 0 }; // 128 instead of DBG_N_CHARS_X for log file 
+    va_list va;
+    
+    va_start(va, format);
+    vsnprintf(tempstr, 128, format, va);
+    addLine(tempstr);
+    va_end(va);
+}
+
+
