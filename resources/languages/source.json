@@ -375,6 +375,7 @@
 	"LANGUAGE_WILL_BE_ACTIVE_ON_NEXT_BOOT": "Language will be active on next boot",
 	"HOME_MORE_MENU_SELECT_ACTION": "HOME more... menu.\nSelect action:",
 	"SD_FORMAT_MENU": "SD format menu",
+	"DEVCART_MENU": "Dev Cartridge Menu",
 	"BONUS_DRIVE_MENU": "Bonus drive setup",
 	"SWITCH_EMUNAND": "Switch EmuNAND",
 	"BUILD_SUPPORT_FILES": "Build support files",

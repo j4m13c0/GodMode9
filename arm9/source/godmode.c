@@ -2207,6 +2207,7 @@ u32 HomeMoreMenu(char* current_path) {
     const char* promptstr = STR_HOME_MORE_MENU_SELECT_ACTION;
     u32 n_opt = 0;
     int sdformat = ++n_opt;
+    
     int bonus = (np_info.count > 0x2000) ? (int) ++n_opt : -1; // 4MB minsize
     int multi = (CheckMultiEmuNand()) ? (int) ++n_opt : -1;
     int bsupport = ++n_opt;
@@ -2247,6 +2248,8 @@ u32 HomeMoreMenu(char* current_path) {
         GetDirContents(current_dir, current_path);
         return 0;
     }
+
+    
     else if (user_select == bonus) { // setup bonus drive
         if (clipboard->n_entries && (DriveType(clipboard->entry[0].path) & (DRV_BONUS|DRV_IMAGE)))
             clipboard->n_entries = 0; // remove bonus drive clipboard entries
@@ -2922,6 +2925,7 @@ u32 GodMode(int entrypoint) {
             const char* optionstr[8];
             bool buttonhome = (pad_state & BUTTON_HOME);
             u32 n_opt = 0;
+            int devcart = ++n_opt;
             int poweroff = ++n_opt;
             int reboot = ++n_opt;
             int language = ++n_opt;
@@ -2930,6 +2934,7 @@ u32 GodMode(int entrypoint) {
             int scripts = ++n_opt;
             int payloads = ++n_opt;
             int more = ++n_opt;
+            if (devcart > 0) optionstr[devcart - 1] = STR_DEVCART_MENU;
             if (poweroff > 0) optionstr[poweroff - 1] = STR_POWEROFF_SYSTEM;
             if (reboot > 0) optionstr[reboot - 1] = STR_REBOOT_SYSTEM;
             if (titleman > 0) optionstr[titleman - 1] = STR_TITLE_MANAGER;
@@ -3021,7 +3026,16 @@ u32 GodMode(int entrypoint) {
                     Paint9(); // hiding a secret here
                     ClearScreenF(true, true, COLOR_STD_BG);
                     break;
-                }
+                } else if (user_select == devcart) { // Dev Cart Menu
+                    // Paint9(); // hiding a secret here
+                    // ClearScreenF(true, true, COLOR_STD_BG);
+                    // break;
+
+                // break;
+            }
+
+
+
             }
 
             if (user_select == poweroff) {
@@ -3030,7 +3044,9 @@ u32 GodMode(int entrypoint) {
             } else if (user_select == reboot) {
                 exit_mode = GODMODE_EXIT_REBOOT;
                 break;
-            }
+            } 
+
+
         } else if (pad_state & (CART_INSERT|CART_EJECT)) {
             if (!InitVCartDrive() && (pad_state & CART_INSERT) &&
                 (curr_drvtype & DRV_CART)) // reinit virtual cart drive
