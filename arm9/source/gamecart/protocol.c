@@ -126,9 +126,9 @@ void Cart_Init_Dev(void)
     // Reset
     NTR_CmdReset();
     // ioDelay(0x40000);
-    CartID = NTR_CmdGetCartId();
-    u32 cmd[2] = {0x9E7DF92A, 0x11ADA9FA};
-    NTR_SendCommand(cmd, 0, 0, NULL);
+    // CartID = NTR_CmdGetCartId();
+    // u32 cmd[2] = {0x9E7DF92A, 0x11ADA9FA};
+    // NTR_SendCommand(cmd, 0, 0, NULL);
     //CartID = NTR_CmdGetCartId();
 
     // 3ds

@@ -97,10 +97,10 @@ void NTR_CmdReadCopts (u8* buffer)
     //cardReadHeader (buffer);
 }
 
-void NTR_CmdA0(void) //id2
+void NTR_CmdA0(void *buff) //id2
 {
     u32 cmd[2] = {0xA0000000, 0x00000000};
-    NTR_SendCommand(cmd, 0,0, NULL);
+    NTR_SendCommand(cmd, 4, 0, &buff); //apparently a 4 byte read
 }
 
 void NTR_Cmd9E7D(void) //CTR S1 and TWL, no NTR and CTR S2

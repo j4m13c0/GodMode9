@@ -21,7 +21,7 @@ bool NTR_Secure_Init (u8* buffer, u8* sa_copy, u32 CartID, int iCardDevice);
 void NTR_CmdAF(void); //activate debug mode, dont know which cartridges are affected
 void NTR_Cmd6D(void *buff); //cartridge info, copts and bad block list
 void NTR_Cmd94(void *buff); //nand id
-void NTR_CmdA0(void); //id2, returns FFFF when write mode
+void NTR_CmdA0(void *buff); //id2, returns FFFF when write mode
 void NTR_Cmd3C(void); //puts cartridges in a "ignore all commands" state
 void NTR_Cmd71(void); //does something on cartridges, listed by 3dbrew
 void NTR_Cmd9E7D(void); //sets twl and ctr 1-st gen in write mode

@@ -22,6 +22,7 @@ typedef struct s_nand
 {
     uint8_t pagesize;
     uint8_t blocksize;
+    uint8_t chipid;
     uint8_t maker_code;
 } t_nand;
 

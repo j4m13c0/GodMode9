@@ -3036,31 +3036,120 @@ u32 GodMode(int entrypoint) {
                 } else if (user_select == devcart) { // Dev Cart Menu
                     ClearScreenF(true, true, COLOR_STD_BG);
                     clearScreenBuffer();
+                    // DEV CART MENU FROM HERE!!!!
+
+                    u32 cartId;
+                    u32 cartId2;
+                    u32 cmd[2] = {0x00000000, 0x00000000};
+                    u32 cmd16[4] = {0x00000000, 0x00000000, 0x00000000, 0x00000000};
+                    u32 buff[0x200];
+                    uint8_t int8_buff [0x200];
+                    
+
+                    // check if cartridge inserted
+                    if (REG_CARDSTATUS & 0x1) {
+                        Debug("Cartridge was not detected");
+                        ShowPrompt(false, "Error");
+                        ClearScreenF(true, true, COLOR_STD_BG);
+                        clearScreenBuffer();
+                        break;
+                    }else{
+                        Debug("Cartridge detected !");
+                    }
 
                     // LUMA CHECK HERE
+
+                    /*
+                    I have removed the special unlock command from the Cart_Init_Dev()
+                    This command would stop some commands from working. 
+                    I will only call the unlock command after getting what i need. 
+                    */
                     Cart_Init_Dev();
-                    u32 buff[512];
-                    u32 cmd[2] = {0x00000000, 0x00000000};
-                    NTR_SendCommand(cmd, 512, 0, &buff);
-                    u32 cmd2[2] = {0x90000000, 0x00000000};
-                    NTR_SendCommand(cmd2, 4, 0, &buff);
-        
-                    Debug("Card ID: %08X", NTR_CmdGetCartId());
 
-                    uint8_t buff2[0x200];
+                    cartId = NTR_CmdGetCartId(); // 0x90 Command
+
+                    // Get Card ID 2
+                    NTR_CmdA0(buff);
+
+                    Debug("Card ID: %08X", cartId);
+                    Debug("Card ID 2: %08X", buff);
+
+                    // Enable Secure Mode 
+                    NTR_Cmd9E7D();
+
+                    // Read the 
                     Debug("Getting NAND info...");
-                    NTR_Cmd94(buff2);
+                    NTR_Cmd94(int8_buff);
                     t_nand nand;
-                    nand.maker_code = buff2[0];
-                    get_pagesize(buff2[3], &nand);
-                    get_blocksize(buff2[3], &nand);
+                    nand.maker_code = int8_buff[0];
+                    nand.chipid = int8_buff[1];
+
+                    get_pagesize(int8_buff[3], &nand);
+                    get_blocksize(int8_buff[3], &nand);
+
+                    Debug("Chip ID: %02X %02X", nand.maker_code, nand.chipid);
 
 
-                    ShowPrompt(false, "Pause");
+                    const char* devcart_optionstr[8];
+                    u32 devcart_opt = 0;
+                    int devcart_read_copts = ++devcart_opt;
+                    int devcart_erase_cart = ++devcart_opt;
+
+
+                    if (devcart_read_copts > 0) devcart_optionstr[devcart_read_copts - 1] = "Read COPTs";
+                    if (devcart_erase_cart > 0) devcart_optionstr[devcart_erase_cart - 1] = "Erase Cart";
+
+                    int dev_menu_user_select = 0;
+                    while ((dev_menu_user_select = ShowSelectPrompt(devcart_opt, devcart_optionstr, "Dev Cart Menu"))) {
+                        if (dev_menu_user_select == devcart_read_copts) {
+                            // Read COPTS
+                            char filename[256];
+                            u64 fsize = 0x800;
+
+                            snprintf(filename, sizeof(filename), "0:/temp_copts.bin");
+                            uint8_t file_buff[0x200];
+
+                            cmd[0] = 0x6D000000;
+                            cmd[1] = 0x00000000;
+                            NTR_SendCommand(cmd, 0, 55730, int8_buff);
+
+                            cmd[0] = 0x9F000000;
+                            cmd[1] = 0x00000000;
+                            NTR_SendCommand(cmd, 0x800, 55730, file_buff);
+
+                            FileSetData(filename, file_buff, fsize, 0, true);
+
+                            uint16_t bad_blocks_list[0x200 / 2]; // Array to store bad blocks
+                            int bad_blocks_count = 0;
+
+                            // Start reading from offset 0x202
+                            for (int i = 0x202; i < 0x302; i += 2) {
+                                uint16_t combined = (file_buff[i + 1] << 8) | file_buff[i];
+
+                                if (combined != 65535) {
+                                    Debug("Bad Block #%d\n", combined);
+                                    bad_blocks_list[bad_blocks_count++] = combined;
+                                }
+                            }
+                            ShowPrompt(false, "COPTS read to SD Card temp_copts.bin");
+                            break;
+
+                        }else if (dev_menu_user_select == devcart_erase_cart) {
+
+
+                            ShowPrompt(false, "Erased Cartridge");
+                            break;
+
+                        }
+
+                    }
+
+                    // ShowPrompt(false, "Pause");
 
                     ClearScreenF(true, true, COLOR_STD_BG);
                     clearScreenBuffer();
-                    //break;
+                    break;
+                    // DEV CART MENU TO HERE!!!!
                 }
             }
 

@@ -6,18 +6,22 @@ void get_pagesize(uint8_t num, t_nand *nand)
     if ((num | PAGESIZE_1K) == PAGESIZE_1K)
     {
         nand->pagesize = PAGESIZE_1K;
+        Debug("1kbit page");
     }
     if ((num & PAGESIZE_2K) == PAGESIZE_2K)
     {
         nand->pagesize = PAGESIZE_2K;
+        Debug("2kbit page");
     }
     if ((num & PAGESIZE_4K) == PAGESIZE_4K)
     {
         nand->pagesize = PAGESIZE_4K;
+        Debug("4kbit page");
     }
     if ((num & PAGESIZE_8K) == PAGESIZE_8K)
     {
         nand->pagesize = PAGESIZE_8K;
+        Debug("8kbit page");
     }
 }
 
