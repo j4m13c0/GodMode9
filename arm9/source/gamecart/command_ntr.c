@@ -100,7 +100,7 @@ void NTR_CmdReadCopts (u8* buffer)
 void NTR_CmdA0(void *buff) //id2
 {
     u32 cmd[2] = {0xA0000000, 0x00000000};
-    NTR_SendCommand(cmd, 4, 0, &buff); //apparently a 4 byte read
+    NTR_SendCommand(cmd, 4, 0x100, buff);
 }
 
 void NTR_Cmd9E7D(void) //CTR S1 and TWL, no NTR and CTR S2
@@ -112,7 +112,7 @@ void NTR_Cmd9E7D(void) //CTR S1 and TWL, no NTR and CTR S2
 void NTR_Cmd94(void *buff) //nand id, same command as ds/twl nand cartridges
 {
     u32 cmd[2] = {0x94000000, 0x00000000}; 
-    NTR_SendCommand(cmd, 512, 0x38270, buff); //firt 5 bytes is nand id, rest is bogus
+    NTR_SendCommand(cmd, 512, 0x38270, buff); //first 5 bytes is nand id, rest is bogus
 }
 
 void NTR_Cmd6D(void *buff) //cartridge info, like copts and bad blocks list
@@ -205,7 +205,7 @@ void NTR_Cmd9D(u32 blkNum) //erase nand block
 void NTR_Cmd6F(u8 *buff)//poll for write/erase status
 {
     u32 cmd[2] = {0x6F000000, 0x00000000};
-    NTR_SendCommand(cmd, 4, 0x100, buff);
+    NTR_SendCommand(cmd, 4, 0, buff);
 }
 
 void NTR_Cmd92(u32 page, u8 *buffer)
@@ -224,7 +224,7 @@ void NTR_Cmd93(u32 page, u8 *buffer)
 
 void NTR_Cmd91(void *buff) {
     u32 cmd[2] = {0x91000000, 0x00000000};
-    NTR_SendCommandWrite(cmd, 0, 0, buff);
+    NTR_SendCommandWrite(cmd, 512, 0x100, buff);
 }
 
 void NTR_ReadCopts(void *buff) {

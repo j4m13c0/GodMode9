@@ -3045,6 +3045,7 @@ u32 GodMode(int entrypoint) {
                     u32 buff[0x200];
                     uint8_t int8_buff [0x200];
                     
+                    const char *ROM_Maker;
 
                     // check if cartridge inserted
                     if (REG_CARDSTATUS & 0x1) {
@@ -3068,13 +3069,46 @@ u32 GodMode(int entrypoint) {
 
                     cartId = NTR_CmdGetCartId(); // 0x90 Command
 
+                    // uint8_t id1_3 = (cartId >> 24) & 0xFF;
+                    // uint8_t id1_2 = (cartId >> 16) & 0xFF;
+                    // uint8_t id1_1 = (cartId >> 8)  & 0xFF;
+                    // uint8_t id1_0 = (cartId >> 0)  & 0xFF;
+
                     // Get Card ID 2
-                    NTR_CmdA0(buff);
+                    NTR_CmdA0(&cartId2);
 
                     Debug("Card ID: %08X", cartId);
-                    Debug("Card ID 2: %08X", buff);
+                    Debug("Card ID 2: %08X", cartId2);
 
-                    // Enable Secure Mode 
+
+                    switch ((cartId >> 0)  & 0xFF) {
+                        case 0xC2: ROM_Maker = "Macronix"; break;
+                        case 0x45: ROM_Maker = "Sandisk"; break;
+                        case 0xB0: ROM_Maker = "Sharp"; break;
+                        case 0xAE: ROM_Maker = "OKI Semi"; break;
+                        case 0x50: ROM_Maker = "Test Platform"; break;
+                        case 0x51: ROM_Maker = "CTR V1 Dev Cart"; break;
+                        case 0x52: ROM_Maker = "KMC Debugger"; break;
+                        case 0x53: ROM_Maker = "IS Debugger"; break;
+                        case 0x54: ROM_Maker = "Sharp Dev Cart"; break;
+                        case 0x55: ROM_Maker = "Sandisk Dev Cart"; break;
+                        case 0x56: ROM_Maker = "Rapis 4GB Dev Cart"; break;
+                        default:   ROM_Maker = "Unknown"; break;
+                    }
+
+                    Debug("ROM Maker: %s\n", ROM_Maker);
+
+                    if(((cartId >> 0)  & 0xFF) != 0x51){
+                        if(((cartId >> 0)  & 0xFF) != 0x56){
+                            ShowPrompt(false, "Not a supported card yet! V2 Card");
+                        }else{
+                            ShowPrompt(false, "Not a development cartridge!");
+                        }
+                        
+                        break;
+                    }
+
+                    // Enable Write Mode 
                     NTR_Cmd9E7D();
 
                     // Read the 
@@ -3089,15 +3123,18 @@ u32 GodMode(int entrypoint) {
 
                     Debug("Chip ID: %02X %02X", nand.maker_code, nand.chipid);
 
+                    uint64_t rom_bits = 0;
 
                     const char* devcart_optionstr[8];
                     u32 devcart_opt = 0;
                     int devcart_read_copts = ++devcart_opt;
                     int devcart_erase_cart = ++devcart_opt;
+                    int devcart_write_copts = ++devcart_opt;
 
 
-                    if (devcart_read_copts > 0) devcart_optionstr[devcart_read_copts - 1] = "Read COPTs";
-                    if (devcart_erase_cart > 0) devcart_optionstr[devcart_erase_cart - 1] = "Erase Cart";
+                    if (devcart_read_copts > 0) devcart_optionstr[devcart_read_copts - 1] = "Read COPTS";
+                    if (devcart_erase_cart > 0) devcart_optionstr[devcart_erase_cart - 1] = "Erase Cart and Write COPTS";
+                    if (devcart_write_copts > 0) devcart_optionstr[devcart_write_copts - 1] = "Write COPTS";
 
                     int dev_menu_user_select = 0;
                     while ((dev_menu_user_select = ShowSelectPrompt(devcart_opt, devcart_optionstr, "Dev Cart Menu"))) {
@@ -3131,14 +3168,90 @@ u32 GodMode(int entrypoint) {
                                     bad_blocks_list[bad_blocks_count++] = combined;
                                 }
                             }
+
+                            uint16_t BBA_FAD = (file_buff[5] << 8) | file_buff[6];
+                            // This is incorrect as it changes depending on the software. Its unreliable for maximum size! 
+                            Debug("Highest Block: #%d\n", BBA_FAD); 
+                            Debug("Maximum File Size: 0x%8X\n", (BBA_FAD * 0x80000)-1);
+
                             ShowPrompt(false, "COPTS read to SD Card temp_copts.bin");
                             break;
 
+                            
                         }else if (dev_menu_user_select == devcart_erase_cart) {
+                            // Erase Cart
+
+                            u32 blk_read_from_copts = 3815;
+                            u32 address_multiplier = 0x40;
+
+                            u32 blk_num, page_in_blk;
+                            blk_num = 0;
+
+                            ShowProgress(blk_num, blk_read_from_copts * address_multiplier, "Erasing Cartridge!");
+                            uint8_t buffer[4];
+
+                            int send_twice = 0;
+
+                            while (blk_num < blk_read_from_copts * address_multiplier)
+                            {
+                               
+                                NTR_Cmd9D(blk_num);
+                                NTR_Cmd6F(buffer);
+
+                                while (!(buffer[0] & (1 << 6))) //busy
+                                {
+                                    //poll again, change 6f to take a pointer as parameter or we will run out of mem
+                                    NTR_Cmd6F(buffer);
+                                    Debug("Busy");
+                                }
+
+                                if(buffer[0] != 0xE0){
+                                    Debug("Bad Block: %d Buffer: %02X%02X%02X%02X",(blk_num / address_multiplier), buffer[0],buffer[1],buffer[2],buffer[3] );
+                                }
+  
+                                if(blk_num % 100 == 0)
+                                    // Debug("Block %d", (blk_num / address_multiplier));
+                                    ShowProgress(blk_num, blk_read_from_copts * address_multiplier, "Erasing Cartridge!");
+
+                                send_twice++;
+                                if (send_twice == 2) {
+                                    blk_num += address_multiplier;
+                                    send_twice = 0;
+                                }
+                            }
 
 
-                            ShowPrompt(false, "Erased Cartridge");
+                            char filename[256];
+                            snprintf(filename, sizeof(filename), "0:/temp_copts.bin");
+
+                            FSIZE_t fsize = FileGetSize(filename);
+
+                            if(fsize > 0x200) fsize = 0x200;
+
+                            uint8_t file_buff[fsize];
+                            FileGetData(filename, file_buff, fsize, 0);
+                            write_copts(file_buff);
+
+
+                            ShowPrompt(false, "Cartridge successfully erased!");
                             break;
+
+                        }else if (dev_menu_user_select == devcart_write_copts) {
+
+                                // write COPTS
+                                char filename[256];
+                                snprintf(filename, sizeof(filename), "0:/temp_copts.bin");
+
+                                FSIZE_t fsize = FileGetSize(filename);
+
+                                if(fsize > 0x200) fsize = 0x200;
+
+                                uint8_t file_buff[fsize];
+                                FileGetData(filename, file_buff, fsize, 0);
+                                write_copts(file_buff);
+
+                                ShowPrompt(false, "COPTS read to Cart from temp_copts.bin");
+                                break;
 
                         }
 
@@ -3150,6 +3263,7 @@ u32 GodMode(int entrypoint) {
                     clearScreenBuffer();
                     break;
                     // DEV CART MENU TO HERE!!!!
+                
                 }
             }
 

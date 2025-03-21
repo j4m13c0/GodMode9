@@ -1,4 +1,5 @@
 #include "devcart.h"
+#include "command_ntr.h"
 #include "ui.h"
 
 void get_pagesize(uint8_t num, t_nand *nand)
@@ -48,4 +49,41 @@ void get_blocksize(uint8_t num, t_nand *nand)
         nand->blocksize = BLOCKSIZE_512K;
         Debug("512kbit block");
     }
+}
+
+
+int write_copts(void *COPTS_data)
+{
+    uint8_t buffer[4];
+
+    char output[3 * 30 + 1];  // 2 chars per byte + 1 space + null terminator
+    output[0] = '\0';         // Start with an empty string
+
+    // for (int i = 0; i < 30; i++) {
+    //     char byte_str[4];     // Enough for "FF " and null terminator
+    //     snprintf(byte_str, sizeof(byte_str), "%02X ", COPTS_data[i]);
+    //     strncat(output, byte_str, sizeof(output) - strlen(output) - 1);
+    // }
+
+    // Debug("FileBuffer: %08X", file_buff);
+
+    NTR_Cmd91(COPTS_data);
+    NTR_Cmd6F(buffer);
+
+    while (!(buffer[0] & (1 << 6))) {
+    
+        NTR_Cmd6F(buffer);
+        Debug("Waiting");
+    }
+
+    if (!(buffer[0] & (1 << 0))) //pass
+    {
+        Debug("COPTS was written successfully!");
+        return 1;
+    }else{
+        Debug("ERROR! COPTS was NOT Written successfully!");
+        return 0;
+    }
+
+    return 0;
 }
