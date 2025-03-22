@@ -28,5 +28,10 @@ typedef struct s_nand
 
 void get_pagesize(uint8_t num, t_nand *nand);
 void get_blocksize(uint8_t num, t_nand *nand);
-int write_copts(void  *COPTS_data);
+int s1_read_copts(void *COPTS_data);
+int s1_write_copts(void  *COPTS_data);
+int s1_erase(size_t nb_blocks);
+int s1_verify_data(size_t nb_pages, void *loadpath);
+int s1_write_data(size_t nb_pages, void *filepath);
+
 #endif

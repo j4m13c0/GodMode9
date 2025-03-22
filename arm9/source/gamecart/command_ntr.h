@@ -30,6 +30,12 @@ void NTR_Cmd9A(void); //unknown, apparently a 4 byte read. rom id ?
 void NTR_Cmd98(void); //unknown
 void NTR_Cmd99(void); //unknown
 void NTR_Cmd9D(u32 blkNum); //erase nand block
+
+void NTR_Cmd9B(u32 blkNum); //execute CRC Check wEX_CRC
+void NTR_Cmd68(u8 *buff); //poll for CRC status wRD_CST
+void NTR_Cmd97(u8 *buff); //reads back CRC wRD_CRC
+
+
 void NTR_Cmd6F(u8 *buff); //poll for write/erase status
 void NTR_Cmd92(u32 page, u8 *buffer); //Command to notify the controller we want to write data. Followed by nth number of dummy commands to clock data
 void NTR_Cmd91(void *buff);

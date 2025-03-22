@@ -202,6 +202,28 @@ void NTR_Cmd9D(u32 blkNum) //erase nand block
     NTR_SendCommand(cmd, 0, 0, NULL);
 }
 
+
+
+void NTR_Cmd9B(u32 blkNum) //execute CRC Check wEX_CRC
+{
+    u32 cmd[2] = {0x9B000000, 0x00000000};
+    cmd[0] = cmd[0] + blkNum;
+    NTR_SendCommand(cmd, 0, 0, NULL);
+}
+
+void NTR_Cmd68(u8 *buff) //poll for CRC status wRD_CST
+{
+    u32 cmd[2] = {0x68000000, 0x00000000};
+    NTR_SendCommand(cmd, 4, 0, buff);
+}
+
+void NTR_Cmd97(u8 *buff) //reads back CRC wRD_CRC
+{
+    u32 cmd[2] = {0x97000000, 0x00000000};
+    NTR_SendCommand(cmd, 4, 0, buff);
+}
+
+
 void NTR_Cmd6F(u8 *buff)//poll for write/erase status
 {
     u32 cmd[2] = {0x6F000000, 0x00000000};

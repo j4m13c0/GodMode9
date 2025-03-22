@@ -33,6 +33,7 @@
 #include "protocol_ntr.h"
 #include "command_ntr.h"
 #include "devcart.h"
+#include "aes.h"
 
 #ifndef N_PANES
 #define N_PANES 3
@@ -3125,43 +3126,326 @@ u32 GodMode(int entrypoint) {
 
                     uint64_t rom_bits = 0;
 
+                    u32 blocks_from_nand_info = 3815;
+
+
                     const char* devcart_optionstr[8];
                     u32 devcart_opt = 0;
-                    int devcart_read_copts = ++devcart_opt;
-                    int devcart_erase_cart = ++devcart_opt;
-                    int devcart_write_copts = ++devcart_opt;
+                    int devcart_s1_test = ++devcart_opt;
+                    int devcart_s1_write_rom = ++devcart_opt;
+                    int devcart_s1_read_copts = ++devcart_opt;
+                    int devcart_s1_erase_cart = ++devcart_opt;
+                    int devcart_s1_verify_cart = ++devcart_opt;
+                    int devcart_s1_write_copts = ++devcart_opt;
 
+                    
+                    if (devcart_s1_test > 0) devcart_optionstr[devcart_s1_test - 1] = "S1 Test";
 
-                    if (devcart_read_copts > 0) devcart_optionstr[devcart_read_copts - 1] = "Read COPTS";
-                    if (devcart_erase_cart > 0) devcart_optionstr[devcart_erase_cart - 1] = "Erase Cart and Write COPTS";
-                    if (devcart_write_copts > 0) devcart_optionstr[devcart_write_copts - 1] = "Write COPTS";
+                    if (devcart_s1_write_rom > 0) devcart_optionstr[devcart_s1_write_rom - 1] = "S1 Complete Write Procedure";
+                    if (devcart_s1_read_copts > 0) devcart_optionstr[devcart_s1_read_copts - 1] = "S1 Read COPTS";
+                    if (devcart_s1_erase_cart > 0) devcart_optionstr[devcart_s1_erase_cart - 1] = "S1 Erase Cart and R/W COPTS";
+
+                    if (devcart_s1_verify_cart > 0) devcart_optionstr[devcart_s1_verify_cart - 1] = "S1 Verify File";
+
+                    if (devcart_s1_write_copts > 0) devcart_optionstr[devcart_s1_write_copts - 1] = "S1 Write COPTS";
 
                     int dev_menu_user_select = 0;
-                    while ((dev_menu_user_select = ShowSelectPrompt(devcart_opt, devcart_optionstr, "Dev Cart Menu"))) {
-                        if (dev_menu_user_select == devcart_read_copts) {
-                            // Read COPTS
-                            char filename[256];
-                            u64 fsize = 0x800;
+                    while ((dev_menu_user_select = ShowSelectPrompt(devcart_opt, devcart_optionstr, "S1 Dev Cart Menu"))) {
 
-                            snprintf(filename, sizeof(filename), "0:/temp_copts.bin");
-                            uint8_t file_buff[0x200];
+                            
+                        if (dev_menu_user_select == devcart_s1_test) {
+                            // What i am testing!
 
-                            cmd[0] = 0x6D000000;
-                            cmd[1] = 0x00000000;
-                            NTR_SendCommand(cmd, 0, 55730, int8_buff);
+                            // char *loadpath = "0:/gm9/in/Mario Kart 7 (Japan) (Rev 2).3ds";
+                            // char *loadpath = "0:/gm9/in/TR_000693.3DS";
+                            char *loadpath = "0:/gm9/in/KTR_LCD_And_Key_Dev.3DS";
 
-                            cmd[0] = 0x9F000000;
-                            cmd[1] = 0x00000000;
-                            NTR_SendCommand(cmd, 0x800, 55730, file_buff);
 
-                            FileSetData(filename, file_buff, fsize, 0, true);
+                            //Mario Kart 8 Japan Retail Title Key
+                            // key_y_bytes: 00060300000004000000000000000000
+                            // enc_title_key: 0042DE57708977D72CDBB1C8B7BF43E2
+                            // aes_seed_nonce: 5D945645DF6B2B03132249B7
+                            // Decrypted key: DA9C887EBF5BB1B7FC602356C52F29A3
+
+                            //TR_000693 Retail!!!!!!
+                            //key_y_bytes: 00C60A00000004000000000000000000
+                            //enc_title_key: B56F48FD0471D5D4B82F9E6976C3EE7D
+                            //aes_seed_nonce: A157552851A6D0A79D2765E3
+                            //Decrypted key: FA09364BB446EE17ED04AF8ADD5C627A
+
+
+                            //KTR_LCD_And_Key_Dev.3DS DEV               
+                            //key_y_bytes: 0000980F000004000000000000000000
+                            //enc_title_key: 6E61832D811F0C781E49804A0BFA81B6
+                            //aes_seed_nonce: DC7029634B0D2AAA1F56320C
+                            //Decrypted key: 9DD6DEB4D551C66B0AE018B0FB753A9A
+
+
+                            uint8_t NCSDKeyY[16]; //From 0x1000 
+                            uint8_t enc_title_key[16]; //From 0x1010 
+                            uint8_t aes_seed_nonce[12]; //From 0x1030
+
+                            uint8_t dec_title_key[16];
+                            uint8_t zerokey [0x10] = {0};
+
+                            
+                            if(FileGetData(loadpath, NCSDKeyY, sizeof(NCSDKeyY), 0x1000)){
+
+                            }else{
+                                Debug("FILE ERROR!!!");
+                            }
+                            FileGetData(loadpath, enc_title_key, sizeof(enc_title_key), 0x1010);
+                            FileGetData(loadpath, aes_seed_nonce, sizeof(aes_seed_nonce), 0x1030);
+
+
+                            uint8_t build_ccm_iv[16] = {0};
+                            // Build IV
+                            build_ccm_iv[0] = 0x00;
+                            memcpy(&build_ccm_iv[1], aes_seed_nonce, 12);
+                            build_ccm_iv[15] = 0x01;
+
+
+                            setup_aeskeyY(0x11, NCSDKeyY);
+                            setup_aeskeyX(0x11, zerokey);
+                            use_aeskey (0x11);
+
+                            set_ctr(aes_seed_nonce);
+
+
+                            aes_decrypt(enc_title_key, dec_title_key, 1, AES_CCM_DECRYPT_MODE);
+                            // aes_decrypt(enc_title_key, dec_title_key, sizeof(enc_title_key) / AES_BLOCK_SIZE, AES_CCM_DECRYPT_MODE);
+                            // 77B...D76
+
+
+
+                            char hex_str[sizeof(NCSDKeyY) * 2 + 1];  // 2 chars per byte + null terminator
+                            for (size_t i = 0; i < sizeof(NCSDKeyY); i++) {
+                                sprintf(&hex_str[i * 2], "%02X", NCSDKeyY[i]);
+                            }
+                            hex_str[sizeof(NCSDKeyY) * 2] = '\0';  // Null-terminate just to be safe
+
+                            Debug("NCSDKeyY: %s", hex_str);
+
+                            hex_str[sizeof(enc_title_key) * 2 + 1];  // 2 chars per byte + null terminator
+                            for (size_t i = 0; i < sizeof(enc_title_key); i++) {
+                                sprintf(&hex_str[i * 2], "%02X", enc_title_key[i]);
+                            }
+                            hex_str[sizeof(enc_title_key) * 2] = '\0';  // Null-terminate just to be safe
+
+                            Debug("enc_title_key: %s", hex_str);
+
+
+                            hex_str[sizeof(aes_seed_nonce) * 2 + 1];  // 2 chars per byte + null terminator
+                            for (size_t i = 0; i < sizeof(aes_seed_nonce); i++) {
+                                sprintf(&hex_str[i * 2], "%02X", aes_seed_nonce[i]);
+                            }
+                            hex_str[sizeof(aes_seed_nonce) * 2] = '\0';  // Null-terminate just to be safe
+
+                            Debug("aes_seed_nonce: %s", hex_str);
+
+                             hex_str[sizeof(dec_title_key) * 2 + 1];  // 2 chars per byte + null terminator
+                            for (size_t i = 0; i < sizeof(dec_title_key); i++) {
+                                sprintf(&hex_str[i * 2], "%02X", dec_title_key[i]);
+                            }
+                            hex_str[sizeof(dec_title_key) * 2] = '\0';  // Null-terminate just to be safe
+
+                            Debug("dec_title_key: %s", hex_str);
+
+
+
+                            // uint8_t key[0x10];         // key_title
+                            // uint8_t nonce[0xC];        // aes_seed_nonce
+                            // uint8_t ciphertext[0x10];  // enc_title_key
+                            // uint8_t mac[0x10];         // aes_mac
+                            // uint8_t plaintext[0x10];
+
+                            // // Set key
+                            // setup_aeskey(0x11, key); // 0x11 is an example keyslot
+                            // use_aeskey(0x11);
+
+                            // // CTR mode setup
+                            // uint8_t ctr[0x10] = {0};
+                            // memcpy(ctr, nonce, 0xC);
+                            // ctr[15] = 1; // Increment counter manually as Nintendo does
+
+                            // // Decrypt with CTR
+                            // ctr_decrypt(ciphertext, plaintext, 1, AES_CTR_MODE, ctr);
+
+                            // // Verify MAC
+                            // uint8_t computed_mac[0x10];
+                            // uint8_t mac_message[0x10] = {0};
+                            // memcpy(mac_message, nonce, 0xC);
+                            // mac_message[15] = 0x01; // same as ctr
+
+                            // setup_aeskey(0x11, key);
+                            // use_aeskey(0x11);
+                            // aes_cmac(mac_message, computed_mac, 0x10);
+
+                            // if (memcmp(mac, computed_mac, 0x10) != 0) {
+                            //     printf("MAC check failed!\n");
+                            // } else {
+                            //     printf("Decryption success\n");
+                            // }
+
+
+
+
+                        }else if (dev_menu_user_select == devcart_s1_write_rom) {
+                            char loadpath[256];
+                            if(FileSelectorSupport(loadpath, "Select 3DS Cartridge ROM to write.", ROMS_DIR, "*.3DS")){
+                                Debug(loadpath);
+                                u64 file_type = IdentifyFileType(loadpath);
+                                if(file_type == GAME_NCSD){
+                                    Debug("NCSD File");
+                                    FSIZE_t fsize = FileGetSize(loadpath);
+
+                                    uint8_t dec_title_key[0x10]; 
+                                    uint8_t PartitionFlags[0x8]; 
+
+                                    // TODO: Must Decrypt the Title Key, I am cheating and using files with the Title Key already in them. 
+                                    FileGetData(loadpath, dec_title_key, sizeof(dec_title_key), 0x1400);
+
+                                    // Get 0x188 (Partition Flags)
+                                    FileGetData(loadpath, PartitionFlags, sizeof(PartitionFlags), 0x188);
+
+                                    // Media Type Index
+                                    if(PartitionFlags[5] == 2){
+                                        Debug("Card2 Media Detected");
+                                        ShowPrompt(false, "Card2 Media Detected.\nThis game cannot be written to this cartridge.\nYou must use a newer cartridge type.");
+                                        break;
+                                    }
+
+                                    // TODO: Detect if it is a Debug or Retail image. 
+                                    bool is_debug = true;
+
+                                    // Prints the Decrypted Key for Debugging
+                                    char hex_str[sizeof(dec_title_key) * 2 + 1];  // 2 chars per byte + null terminator
+                                    for (size_t i = 0; i < sizeof(dec_title_key); i++) {
+                                        sprintf(&hex_str[i * 2], "%02X", dec_title_key[i]);
+                                    }
+                                    hex_str[sizeof(dec_title_key) * 2] = '\0';  // Null-terminate just to be safe
+
+                                    Debug("%s\n", hex_str);
+
+
+
+                                    // Read COPTS from the cartridge. 
+                                    uint8_t copts_data[0x200];
+                                    s1_read_copts(copts_data);
+
+                                    // size_t nb_pages = fsize / 0x2000;
+                                    size_t nb_pages = (fsize + 0x2000 - 1) / 0x2000;
+
+                                    Debug("Filesize: %ld bytes, no of Pages: %ld no of Blocks: %ld", fsize, nb_pages, nb_pages/ 64);
+
+                                    if (nb_pages / 64 < 251) {
+                                        Debug("Writing 1Gbit COPTS");
+                                        //BBA_U 
+                                        copts_data[5] = 0x00;
+                                        //BBA_L
+                                        copts_data[6] = 0xFB;
+                                        //ID_1_UL
+                                        copts_data[193] = 0x7F;
+
+                                    } else if (nb_pages / 64 < 502) {
+                                        // Handle case for nb_pages >= X and < Y
+                                        Debug("Writing 2Gbit COPTS"); 
+                                        //BBA_U 
+                                        copts_data[5] = 0x01;
+                                        //BBA_L
+                                        copts_data[6] = 0xF6;
+                                        //ID_1_UL
+                                        copts_data[193] = 0xFF;
+
+                                    } else if (nb_pages / 64 < 1004) {
+                                        // Handle case for nb_pages >= X and < Y
+                                        Debug("Writing 4Gbit COPTS");
+                                        //BBA_U 
+                                        copts_data[5] = 0x03;
+                                        //BBA_L
+                                        copts_data[6] = 0xEC;
+                                        //ID_1_UL
+                                        copts_data[193] = 0xFE;
+                                    } else if (nb_pages / 64 < 2008) {
+                                        // Handle case for nb_pages >= X and < Y
+                                        Debug("Writing 8Gbit COPTS");
+                                        //BBA_U 
+                                        copts_data[5] = 0x07;
+                                        //BBA_L
+                                        copts_data[6] = 0x73;
+                                        //ID_1_UL
+                                        copts_data[193] = 0xFA;
+                                    } else if (nb_pages / 64 < 3815) {
+                                        // Handle case for nb_pages >= X and < Y
+                                        Debug("Writing 16Gbit COPTS");
+                                        //BBA_U 
+                                        copts_data[5] = 0x0E;
+                                        //BBA_L
+                                        copts_data[6] = 0xE7;
+                                        //ID_1_UL
+                                        copts_data[193] = 0xF8;
+                                    } else {
+                                        // Handle case for nb_pages >= Z
+                                        Debug("UNKNOWN File Size!");
+                                        break;
+                                    }
+
+                                    if(is_debug){
+                                        copts_data[196] = 0x3; //0x3 is dev mode, 0x0 is retail mode
+                                    }else{
+                                        copts_data[196] = 0x0; //0x3 is dev mode, 0x0 is retail mode
+                                    }
+
+                                    if(s1_erase(blocks_from_nand_info)){
+                                        Debug("Erased succesfully!");
+                                    }else{
+                                        ShowPrompt(false, "Error erasing Cartridge!");
+                                        break;
+                                    }
+
+                                    if(s1_write_data(nb_pages, loadpath)){
+                                        Debug("Data was written successfully!");
+                                    }else{
+                                        ShowPrompt(false, "Error writing Data!");
+                                        break;
+                                    }
+                                 
+                                    if(s1_write_copts(copts_data)){
+                                        Debug("COPTS was written successfully!");
+                                    }else{
+                                        ShowPrompt(false, "CRITICAL: COPTS Write Failed!");
+                                        break;
+                                    }
+
+                                    // Verify the Cartridge 
+                                    if(s1_verify_data(nb_pages, loadpath)){
+                                        Debug("Verification Complete!");
+                                    }else{
+                                        ShowPrompt(false, "Verification Failed!");
+                                        break;
+                                    }
+                                    
+                                    ShowPrompt(false, "Writing to cartridge has completed successfully!");
+                                            break;
+
+                                }else{
+                                    ShowPrompt(false, "Incorrect File Type selected!");
+                                    break;
+                                }
+                            }
+
+
+                        }else if (dev_menu_user_select == devcart_s1_read_copts) {
+
+                            uint8_t copts_data[0x200];
+                            s1_read_copts(copts_data);
 
                             uint16_t bad_blocks_list[0x200 / 2]; // Array to store bad blocks
                             int bad_blocks_count = 0;
 
                             // Start reading from offset 0x202
                             for (int i = 0x202; i < 0x302; i += 2) {
-                                uint16_t combined = (file_buff[i + 1] << 8) | file_buff[i];
+                                uint16_t combined = (copts_data[i + 1] << 8) | copts_data[i];
 
                                 if (combined != 65535) {
                                     Debug("Bad Block #%d\n", combined);
@@ -3169,7 +3453,7 @@ u32 GodMode(int entrypoint) {
                                 }
                             }
 
-                            uint16_t BBA_FAD = (file_buff[5] << 8) | file_buff[6];
+                            uint16_t BBA_FAD = (copts_data[5] << 8) | copts_data[6];
                             // This is incorrect as it changes depending on the software. Its unreliable for maximum size! 
                             Debug("Highest Block: #%d\n", BBA_FAD); 
                             Debug("Maximum File Size: 0x%8X\n", (BBA_FAD * 0x80000)-1);
@@ -3178,80 +3462,66 @@ u32 GodMode(int entrypoint) {
                             break;
 
                             
-                        }else if (dev_menu_user_select == devcart_erase_cart) {
-                            // Erase Cart
+                        }else if (dev_menu_user_select == devcart_s1_erase_cart) {
+                            
+                            uint8_t copts_data[0x200];
+                            s1_read_copts(copts_data);
 
-                            u32 blk_read_from_copts = 3815;
-                            u32 address_multiplier = 0x40;
-
-                            u32 blk_num, page_in_blk;
-                            blk_num = 0;
-
-                            ShowProgress(blk_num, blk_read_from_copts * address_multiplier, "Erasing Cartridge!");
-                            uint8_t buffer[4];
-
-                            int send_twice = 0;
-
-                            while (blk_num < blk_read_from_copts * address_multiplier)
-                            {
-                               
-                                NTR_Cmd9D(blk_num);
-                                NTR_Cmd6F(buffer);
-
-                                while (!(buffer[0] & (1 << 6))) //busy
-                                {
-                                    //poll again, change 6f to take a pointer as parameter or we will run out of mem
-                                    NTR_Cmd6F(buffer);
-                                    Debug("Busy");
-                                }
-
-                                if(buffer[0] != 0xE0){
-                                    Debug("Bad Block: %d Buffer: %02X%02X%02X%02X",(blk_num / address_multiplier), buffer[0],buffer[1],buffer[2],buffer[3] );
-                                }
-  
-                                if(blk_num % 100 == 0)
-                                    // Debug("Block %d", (blk_num / address_multiplier));
-                                    ShowProgress(blk_num, blk_read_from_copts * address_multiplier, "Erasing Cartridge!");
-
-                                send_twice++;
-                                if (send_twice == 2) {
-                                    blk_num += address_multiplier;
-                                    send_twice = 0;
-                                }
+                            if(s1_erase(blocks_from_nand_info)){
+                                Debug("Erased succesfully!");
+                            }else{
+                                ShowPrompt(false, "Error erasing Cartridge!");
+                                break;
                             }
 
-
-                            char filename[256];
-                            snprintf(filename, sizeof(filename), "0:/temp_copts.bin");
-
-                            FSIZE_t fsize = FileGetSize(filename);
-
-                            if(fsize > 0x200) fsize = 0x200;
-
-                            uint8_t file_buff[fsize];
-                            FileGetData(filename, file_buff, fsize, 0);
-                            write_copts(file_buff);
-
+                            s1_write_copts(copts_data);
 
                             ShowPrompt(false, "Cartridge successfully erased!");
                             break;
 
-                        }else if (dev_menu_user_select == devcart_write_copts) {
+                        }else if (dev_menu_user_select == devcart_s1_verify_cart) {
+                            if(FileSelectorSupport(loadpath, "Select 3DS Cartridge ROM to write.", ROMS_DIR, "*.3DS")){
+                                Debug(loadpath);
+                                u64 file_type = IdentifyFileType(loadpath);
+                                if(file_type == GAME_NCSD){
+                                    Debug("NCSD File");
+                                    FSIZE_t fsize = FileGetSize(loadpath);
+                                    size_t nb_pages = (fsize + 0x2000 - 1) / 0x2000;
 
-                                // write COPTS
+                                    // Verify the Cartridge 
+                                    if(s1_verify_data(nb_pages, loadpath)){
+                                        Debug("Verification Complete!");
+                                        
+                                    }else{
+                                        ShowPrompt(false, "Verification Failed!");
+                                        break;
+                                    }
+
+                                    ShowPrompt(false, "Verification Complete!");
+                                    break;
+
+                                }
+                            }else{
+                                ShowPrompt(false, "Incorrect File Type selected!");
+                                break;
+                            }
+                        }else if (dev_menu_user_select == devcart_s1_write_copts) {
+
+                                // write COPTS from File
                                 char filename[256];
                                 snprintf(filename, sizeof(filename), "0:/temp_copts.bin");
-
                                 FSIZE_t fsize = FileGetSize(filename);
-
                                 if(fsize > 0x200) fsize = 0x200;
-
                                 uint8_t file_buff[fsize];
-                                FileGetData(filename, file_buff, fsize, 0);
-                                write_copts(file_buff);
-
-                                ShowPrompt(false, "COPTS read to Cart from temp_copts.bin");
-                                break;
+                                if(FileGetData(filename, file_buff, fsize, 0)){
+                                    s1_write_copts(file_buff);
+                                    ShowPrompt(false, "COPTS read to Cart from temp_copts.bin");
+                                    break;
+                                }else{
+                                    ShowPrompt(false, "ERROR: COPTS file temp_copts.bin is missing. ");
+                                    break;
+                                }
+                                
 
                         }
 
