@@ -28,10 +28,16 @@ typedef struct s_nand
 
 void get_pagesize(uint8_t num, t_nand *nand);
 void get_blocksize(uint8_t num, t_nand *nand);
-int s1_read_copts(void *COPTS_data);
-int s1_write_copts(void  *COPTS_data);
-int s1_erase(size_t nb_blocks);
-int s1_verify_data(size_t nb_pages, void *loadpath);
-int s1_write_data(size_t nb_pages, void *filepath);
+int v1_read_copts(void *COPTS_data);
+int v1_write_copts(void  *COPTS_data);
+int v1_erase(size_t nb_blocks);
+int v1_verify_data(size_t nb_pages, void *loadpath, void* dec_title_key);
+int v1_write_data(size_t nb_pages, void *filepath, void* dec_title_key);
+
+// Some stuff to help with Card Crypto
+void rol128(uint8_t* dst, const uint8_t* src, int rbits);
+void derive_title_key(uint8_t* out_key, const uint8_t* keyX, const uint8_t* keyY);
+int decrypt_card_title_Key(uint8_t* seed, uint8_t* mac, uint8_t* nonce, bool is_debug_signed, uint8_t* encrypted_key, uint8_t* decrypted_key);
+
 
 #endif
